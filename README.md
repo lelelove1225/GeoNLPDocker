@@ -1,0 +1,2 @@
+# GeoNLPDocker
+GeoNLPを動かすためのDockerfile
