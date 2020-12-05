@@ -54,4 +54,4 @@ RUN ./configure --prefix=/opt/sqlite3
 RUN mv /usr/bin/sqlite3 /usr/bin/sqlite3_old
 RUN ln -s /opt/sqlite3/bin/sqlite3 /usr/bin/sqlite3
 RUN rpm -Uvh https://download.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-RUN dnf install gdal-libs -y
+RUN dnf install gdal-devel -y
