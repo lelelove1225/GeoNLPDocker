@@ -1,7 +1,7 @@
 FROM centos:latest
 RUN dnf update -y
 RUN dnf install glibc-locale-source glibc-langpack-ja -y
-RUN dnf install boost boost-devel sqlite-devel \
+RUN dnf install boost boost-devel sqlite sqlite-devel \
     gcc-c++ automake autoconf -y
 RUN dnf install bzip2 bzip2-devel gcc gcc-c++ \ 
     git make wget curl openssl-devel readline-devel \
@@ -33,25 +33,55 @@ WORKDIR /source
 RUN git clone --depth 1 https://github.com/neologd/mecab-ipadic-neologd.git
 ENV PATH /opt/mecab/bin:$PATH
 RUN ./mecab-ipadic-neologd/bin/install-mecab-ipadic-neologd -n -y -p /opt/mecab/lib/mecab/dic/neologd
+WORKDIR /opt
+RUN wget https://www.sqlite.org/2019/sqlite-autoconf-3270100.tar.gz
+RUN tar xvfz sqlite-autoconf-3270100.tar.gz
+WORKDIR /opt/sqlite-autoconf-3270100
+RUN mkdir -p /opt/sqlite
+RUN ./configure --prefix=/opt/sqlite
+RUN make
+RUN make install
+RUN ln -fs /opt/sqlite3/bin/sqlite3 sqlite3
 RUN mkdir -p ~/source/dams
 WORKDIR /source/dams
 RUN wget http://newspat.csis.u-tokyo.ac.jp/download/dams-4.3.3.tgz
 RUN gzip -dc dams-4.3.3.tgz | tar xf -
 RUN mkdir -p /opt/dams
 WORKDIR /source/dams/dams-4.3.3
+RUN dnf install https://forensics.cert.org/cert-forensics-tools-release-el7.rpm -y
+RUN dnf install libiconv-devel libiconv-utils libiconv -y
 RUN ./configure
+# RUN ./configure --prefix=/opt/dams --with-charset=UTF8
+# RUN ./configure --with-charset=UTF8 CPPFLAGS=-I/usr/local/include
+# RUN ./configure --with-charset=UTF8 LIBS=-liconv CPPFLAGS=-I/usr/local/include
 RUN make
 RUN make dic
 RUN make test
-RUN mkdir -p /tmp
-WORKDIR /tmp
-RUN wget https://www.sqlite.org/2019/sqlite-autoconf-3270100.tar.gz
-RUN tar xvfz sqlite-autoconf-3270100.tar.gz
-WORKDIR /tmp/sqlite-autoconf-3270100
-RUN mkdir -p /opt/sqlite3
-#WORKDIR /opt/sqlite3
-RUN ./configure --prefix=/opt/sqlite3
-RUN mv /usr/bin/sqlite3 /usr/bin/sqlite3_old
-RUN ln -s /opt/sqlite3/bin/sqlite3 /usr/bin/sqlite3
-RUN rpm -Uvh https://download.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-RUN dnf install gdal-devel -y
+#RUN make install
+#RUN make install-dic
+# RUN mkdir -p /tmp
+RUN rpm -Uvh https://download.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+RUN dnf install xerces-c jasper-libs libwebp giflib -y
+RUN dnf config-manager --set-enabled PowerTools -y
+RUN dnf install libdap -y
+RUN dnf clean packages
+RUN dnf install gdal-libs gdal-devel -y
+RUN mkdir -p ~/source/geonlp
+WORKDIR /source/geonlp
+RUN wget https://geonlp.ex.nii.ac.jp/software/geonlp-1.2.0.tgz
+RUN gzip -dc geonlp-1.2.0.tgz | tar xfv -
+WORKDIR /geonlp-1.2.0
+RUN mkdir -p /opt/geonlp
+WORKDIR  /source/geonlp/geonlp-1.2.0
+RUN ./configure --prefix=/opt/geonlp LDFLAGS="-L/opt/mecab/lib -L/opt/sqlite3/lib" CXXFLAGS="-I/opt/mecab/include -I/opt/sqlite3/include"
+RUN ./configure --prefix=/opt/geonlp LDFLAGS="-L/opt/mecab/lib -L/opt/sqlite3/lib -L/usr/lib64" INCLUDE="-I/opt/mecab/include -I/opt/sqlite3/include -I/usr/include" CXXFLAGS="-I/opt/mecab/include -I/opt/sqlite3/include -I/usr/include"
+COPY ./SelectCondition.cpp /source/geonlp/geonlp-1.2.0/libgeonlp/
+RUN make
+RUN make install
+RUN makedir -p /opt/geonlp/lib/geonlp
+WORKDIR /opt/geonlp/lib/geonlp
+COPY geodic.sq3 .
+COPY wordlist.sq3 .
+RUN chmod 777 ./geodic.sq3
+RUN chmod 777 ./wordlist.sq3
+ENV PATH /opt/geonlp/bin:$PATH
