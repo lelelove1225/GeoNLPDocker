@@ -85,3 +85,4 @@ COPY wordlist.sq3 .
 RUN chmod 777 ./geodic.sq3
 RUN chmod 777 ./wordlist.sq3
 ENV PATH /opt/geonlp/bin:$PATH
+RUN dnf install php-pdo php-json -y
